@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.local
+.env.docker.local
+.DS_Store
+coverage/
+*.log
+.vscode/
+.idea/
+dist/
+build/
+mongodb-backup/
+*.swp
+*.swo
+.npm
+.eslintcache
