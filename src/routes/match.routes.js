@@ -455,6 +455,46 @@ router.get('/threads/:threadId/messages', authenticate, validateQuery(getMessage
 });
 
 /**
+ * POST /threads/:threadId/read
+ * Mark all messages in a thread as read by current user
+ */
+router.post('/threads/:threadId/read', authenticate, async (req, res, next) => {
+  try {
+    const thread = await Thread.findById(req.params.threadId);
+
+    if (!thread) {
+      return res.status(404).json({ error: 'Thread not found' });
+    }
+
+    // Verify user is participant
+    if (!thread.participants.some(p => p.equals(req.user.userId))) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    // Mark all messages in this thread as read by this user
+    await Message.updateMany(
+      {
+        threadId: thread._id,
+        senderId: { $ne: req.user.userId }, // Don't mark own messages
+        'readBy.userId': { $ne: req.user.userId } // Not already read
+      },
+      {
+        $push: {
+          readBy: {
+            userId: req.user.userId,
+            readAt: new Date()
+          }
+        }
+      }
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * POST /threads/:id/messages
  * Send a message in a thread
  */
