@@ -416,6 +416,19 @@ router.post('/threads/:threadId/messages', authenticate, validate(sendMessageSch
     thread.lastMessageAt = new Date();
     await thread.save();
 
+    // Broadcast message via Socket.IO
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`thread:${thread._id}`).emit('message:new', {
+        id: message._id,
+        threadId: message.threadId,
+        senderId: message.senderId,
+        body: message.body,
+        attachments: message.attachments,
+        createdAt: message.createdAt,
+      });
+    }
+
     // Send notification to other participant
     const otherParticipant = thread.participants.find(p => !p.equals(req.user.userId));
     if (otherParticipant) {
