@@ -222,9 +222,21 @@ router.get('/:id', authenticate, async (req, res, next) => {
       return res.status(403).json({ error: 'Not authorized to view this match' });
     }
 
-    res.json({
+    const response = {
       id: match._id,
-      request: {
+      requesterId: match.requesterId,
+      helperId: match.helperId,
+      status: match.status,
+      trackingEnabled: match.trackingEnabled,
+      startedAt: match.startedAt,
+      endedAt: match.endedAt,
+      createdAt: match.createdAt,
+      updatedAt: match.updatedAt,
+    };
+
+    // Add request details if populated
+    if (match.requestId) {
+      response.request = {
         id: match.requestId._id,
         title: match.requestId.title,
         details: match.requestId.details,
@@ -234,20 +246,18 @@ router.get('/:id', authenticate, async (req, res, next) => {
           lng: match.requestId.location.coordinates[0],
           lat: match.requestId.location.coordinates[1],
         },
-      },
-      offer: {
+      };
+    }
+
+    // Add offer details if populated (can be null for direct matches)
+    if (match.offerId) {
+      response.offer = {
         id: match.offerId._id,
         skills: match.offerId.skills,
-      },
-      requesterId: match.requesterId,
-      helperId: match.helperId,
-      status: match.status,
-      trackingEnabled: match.trackingEnabled,
-      startedAt: match.startedAt,
-      endedAt: match.endedAt,
-      createdAt: match.createdAt,
-      updatedAt: match.updatedAt,
-    });
+      };
+    }
+
+    res.json(response);
   } catch (error) {
     next(error);
   }
