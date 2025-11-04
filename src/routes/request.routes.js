@@ -219,4 +219,37 @@ router.patch('/:id', authenticate, validate(updateRequestSchema), async (req, re
   }
 });
 
+/**
+ * DELETE /requests/:id
+ * Delete request (only by owner)
+ */
+router.delete('/:id', authenticate, async (req, res, next) => {
+  try {
+    const request = await Request.findById(req.params.id);
+
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    // Check ownership
+    if (!request.userId.equals(req.user.userId)) {
+      return res.status(403).json({ error: 'Not authorized to delete this request' });
+    }
+
+    // Cannot delete if already matched or completed
+    if (request.status === 'matched' || request.status === 'in-progress' || request.status === 'completed') {
+      return res.status(400).json({ error: 'Cannot delete request in current status' });
+    }
+
+    await request.deleteOne();
+
+    // Log action
+    await logAction(req.user.userId, 'request.delete', req, { requestId: request._id });
+
+    res.json({ message: 'Request deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
