@@ -8,6 +8,7 @@ const updateProfileSchema = Joi.object({
   radiusKm: Joi.number()
     .min(config.geo.min_radius_km)
     .max(config.geo.max_radius_km),
+  role: Joi.string().valid('helper', 'requester', 'both'),
   home: Joi.object({
     lng: Joi.number().min(-180).max(180).required(),
     lat: Joi.number().min(-90).max(90).required(),

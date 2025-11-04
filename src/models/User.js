@@ -48,6 +48,11 @@ const userSchema = new mongoose.Schema({
     min: config.geo.min_radius_km,
     max: config.geo.max_radius_km,
   },
+  role: {
+    type: String,
+    enum: ['helper', 'requester', 'both'],
+    default: null, // Will be set during role selection
+  },
   isDeleted: {
     type: Boolean,
     default: false,

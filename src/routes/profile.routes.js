@@ -49,6 +49,7 @@ router.get('/', authenticate, async (req, res, next) => {
       avatarUrl: user.avatarUrl,
       skills: user.skills,
       radiusKm: user.radiusKm,
+      role: user.role,
       home: user.home ? {
         lng: user.home.coordinates[0],
         lat: user.home.coordinates[1],
@@ -78,6 +79,7 @@ router.patch('/profile', authenticate, validate(updateProfileSchema), async (req
     if (req.body.bio !== undefined) updates.bio = req.body.bio;
     if (req.body.skills) updates.skills = req.body.skills;
     if (req.body.radiusKm) updates.radiusKm = req.body.radiusKm;
+    if (req.body.role) updates.role = req.body.role;
     if (req.body.home) {
       updates.home = {
         type: 'Point',
