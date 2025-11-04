@@ -26,12 +26,10 @@ router.post('/', authenticate, validate(createMatchSchema), async (req, res, nex
   try {
     const { requestId, offerId } = req.body;
 
-    // Verify request and offer exist
+    // Verify request exists
     const request = await Request.findById(requestId);
-    const offer = await Offer.findById(offerId);
-
-    if (!request || !offer) {
-      return res.status(404).json({ error: 'Request or offer not found' });
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' });
     }
 
     // Verify request is open
@@ -39,33 +37,97 @@ router.post('/', authenticate, validate(createMatchSchema), async (req, res, nex
       return res.status(400).json({ error: 'Request is not open' });
     }
 
-    // Check if match already exists
-    const existingMatch = await Match.findOne({ requestId, offerId });
-    if (existingMatch) {
-      return res.status(409).json({ error: 'Match already exists', matchId: existingMatch._id });
+    let helperId;
+    let offer = null;
+
+    if (offerId) {
+      // If offerId provided, use it (traditional flow)
+      offer = await Offer.findById(offerId);
+      if (!offer) {
+        return res.status(404).json({ error: 'Offer not found' });
+      }
+      helperId = offer.userId;
+
+      // Check if match already exists
+      const existingMatch = await Match.findOne({ requestId, offerId });
+      if (existingMatch) {
+        // Return existing thread instead of error
+        const existingThread = await Thread.findOne({ matchId: existingMatch._id });
+        return res.status(200).json({
+          match: {
+            id: existingMatch._id,
+            requestId: existingMatch.requestId,
+            offerId: existingMatch.offerId,
+            requesterId: existingMatch.requesterId,
+            helperId: existingMatch.helperId,
+            status: existingMatch.status,
+            createdAt: existingMatch.createdAt,
+          },
+          thread: {
+            id: existingThread._id,
+            matchId: existingThread.matchId,
+          },
+          chatThreadId: existingThread._id,
+        });
+      }
+    } else {
+      // Direct helper-to-request match (simplified flow)
+      helperId = req.user.userId;
+
+      // Check if this helper already has a match for this request
+      const existingMatch = await Match.findOne({
+        requestId,
+        helperId: req.user.userId
+      });
+
+      if (existingMatch) {
+        // Return existing thread instead of error
+        const existingThread = await Thread.findOne({ matchId: existingMatch._id });
+        return res.status(200).json({
+          match: {
+            id: existingMatch._id,
+            requestId: existingMatch.requestId,
+            offerId: existingMatch.offerId,
+            requesterId: existingMatch.requesterId,
+            helperId: existingMatch.helperId,
+            status: existingMatch.status,
+            createdAt: existingMatch.createdAt,
+          },
+          thread: {
+            id: existingThread._id,
+            matchId: existingThread.matchId,
+          },
+          chatThreadId: existingThread._id,
+        });
+      }
+    }
+
+    // Prevent requester from matching with their own request
+    if (request.userId.equals(helperId)) {
+      return res.status(400).json({ error: 'Cannot match with your own request' });
     }
 
     // Create match
     const match = await Match.create({
       requestId,
-      offerId,
+      offerId: offerId || null,
       requesterId: request.userId,
-      helperId: offer.userId,
+      helperId: helperId,
       status: 'pending',
     });
 
     // Create thread for chat
     const thread = await Thread.create({
       matchId: match._id,
-      participants: [request.userId, offer.userId],
+      participants: [request.userId, helperId],
     });
 
-    // Update request status
-    request.status = 'matched';
-    await request.save();
+    // Don't update request status until requester accepts
+    // request.status = 'matched';
+    // await request.save();
 
     // Send notifications
-    await notificationService.sendMatchNotification(offer.userId, match._id);
+    await notificationService.sendMatchNotification(request.userId, match._id);
 
     // Log action
     await logAction(req.user.userId, 'match.create', req, { matchId: match._id });
@@ -84,6 +146,7 @@ router.post('/', authenticate, validate(createMatchSchema), async (req, res, nex
         id: thread._id,
         matchId: thread.matchId,
       },
+      chatThreadId: thread._id,
     });
   } catch (error) {
     next(error);

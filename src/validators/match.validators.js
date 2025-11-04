@@ -2,7 +2,7 @@ const Joi = require('joi');
 
 const createMatchSchema = Joi.object({
   requestId: Joi.string().hex().length(24).required(),
-  offerId: Joi.string().hex().length(24).required(),
+  offerId: Joi.string().hex().length(24),
 });
 
 const updateMatchStatusSchema = Joi.object({
