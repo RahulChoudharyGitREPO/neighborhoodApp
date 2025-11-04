@@ -342,6 +342,32 @@ router.post('/:id/tracking/start', authenticate, async (req, res, next) => {
 });
 
 /**
+ * GET /matches/unread-count
+ * Get total unread message count for current user
+ */
+router.get('/unread-count', authenticate, async (req, res, next) => {
+  try {
+    // Get all threads where user is participant
+    const threads = await Thread.find({
+      participants: req.user.userId
+    }).select('_id');
+
+    const threadIds = threads.map(t => t._id);
+
+    // Count messages not sent by user and not read by user
+    const unreadCount = await Message.countDocuments({
+      threadId: { $in: threadIds },
+      senderId: { $ne: req.user.userId },
+      'readBy.userId': { $ne: req.user.userId }
+    });
+
+    res.json({ unreadCount });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /threads/:id/messages
  * Get messages in a thread
  */
