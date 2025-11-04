@@ -154,6 +154,56 @@ router.post('/', authenticate, validate(createMatchSchema), async (req, res, nex
 });
 
 /**
+ * GET /matches
+ * Get all matches for the current user
+ */
+router.get('/', authenticate, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+
+    // Find all matches where user is either requester or helper
+    const matches = await Match.find({
+      $or: [
+        { requesterId: userId },
+        { helperId: userId }
+      ]
+    })
+    .sort({ createdAt: -1 })
+    .populate('requestId', 'title details category')
+    .populate('requesterId', 'displayName avatarUrl')
+    .populate('helperId', 'displayName avatarUrl');
+
+    // Get thread IDs for each match
+    const matchesWithThreads = await Promise.all(
+      matches.map(async (match) => {
+        const thread = await Thread.findOne({ matchId: match._id });
+        return {
+          id: match._id,
+          _id: match._id,
+          requestId: match.requestId,
+          offerId: match.offerId,
+          requesterId: match.requesterId,
+          helperId: match.helperId,
+          status: match.status,
+          trackingEnabled: match.trackingEnabled,
+          chatThreadId: thread ? thread._id : null,
+          thread: thread ? { id: thread._id, _id: thread._id } : null,
+          createdAt: match.createdAt,
+          updatedAt: match.updatedAt,
+        };
+      })
+    );
+
+    res.json({
+      matches: matchesWithThreads,
+      total: matchesWithThreads.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /matches/:id
  * Get match details
  */
