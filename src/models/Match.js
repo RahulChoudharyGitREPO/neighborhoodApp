@@ -10,7 +10,8 @@ const matchSchema = new mongoose.Schema({
   offerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Offer',
-    required: true,
+    required: false,
+    default: null,
     index: true,
   },
   requesterId: {
@@ -42,7 +43,9 @@ const matchSchema = new mongoose.Schema({
 });
 
 // Composite indexes
-matchSchema.index({ requestId: 1, offerId: 1 }, { unique: true });
+// Note: Unique index removed for requestId + offerId since offerId can be null for direct matches
+matchSchema.index({ requestId: 1, offerId: 1 });
+matchSchema.index({ requestId: 1, helperId: 1 }); // For direct helper-to-request matches
 matchSchema.index({ requesterId: 1, status: 1 });
 matchSchema.index({ helperId: 1, status: 1 });
 matchSchema.index({ status: 1, createdAt: -1 });
