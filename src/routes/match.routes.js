@@ -107,6 +107,16 @@ router.post('/', authenticate, validate(createMatchSchema), async (req, res, nex
       return res.status(400).json({ error: 'Cannot match with your own request' });
     }
 
+    // Check if there's already an accepted match for this request
+    const acceptedMatch = await Match.findOne({
+      requestId,
+      status: { $in: ['accepted', 'in-progress', 'completed'] }
+    });
+
+    if (acceptedMatch) {
+      return res.status(400).json({ error: 'This request has already been assigned to a helper' });
+    }
+
     // Create match
     const match = await Match.create({
       requestId,
@@ -200,6 +210,42 @@ router.get('/', authenticate, async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+});
+
+/**
+ * GET /matches/unread-count
+ * Get total unread message count for current user
+ */
+router.get('/unread-count', authenticate, async (req, res, next) => {
+  try {
+    const mongoose = require('mongoose');
+    const userId = mongoose.Types.ObjectId(req.user.userId);
+
+    // Get all threads where user is participant
+    const threads = await Thread.find({
+      participants: userId
+    }).select('_id');
+
+    // If no threads, return 0
+    if (!threads || threads.length === 0) {
+      return res.json({ unreadCount: 0 });
+    }
+
+    const threadIds = threads.map(t => t._id);
+
+    // Count messages not sent by user and not read by user
+    const unreadCount = await Message.countDocuments({
+      threadId: { $in: threadIds },
+      senderId: { $ne: userId },
+      'readBy.userId': { $ne: userId }
+    });
+
+    res.json({ unreadCount });
+  } catch (error) {
+    console.error('Unread count error:', error);
+    // Return 0 instead of erroring out
+    res.json({ unreadCount: 0 });
   }
 });
 
@@ -336,32 +382,6 @@ router.post('/:id/tracking/start', authenticate, async (req, res, next) => {
       wsToken,
       trackingEnabled: true,
     });
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * GET /matches/unread-count
- * Get total unread message count for current user
- */
-router.get('/unread-count', authenticate, async (req, res, next) => {
-  try {
-    // Get all threads where user is participant
-    const threads = await Thread.find({
-      participants: req.user.userId
-    }).select('_id');
-
-    const threadIds = threads.map(t => t._id);
-
-    // Count messages not sent by user and not read by user
-    const unreadCount = await Message.countDocuments({
-      threadId: { $in: threadIds },
-      senderId: { $ne: req.user.userId },
-      'readBy.userId': { $ne: req.user.userId }
-    });
-
-    res.json({ unreadCount });
   } catch (error) {
     next(error);
   }

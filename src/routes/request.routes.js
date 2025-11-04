@@ -67,6 +67,12 @@ router.get('/', authenticate, validateQuery(searchRequestsSchema), async (req, r
       additionalFilters.category = category;
     }
 
+    // Only show open requests by default (can be overridden with status query param)
+    const status = req.query.status || 'open';
+    if (status) {
+      additionalFilters.status = status;
+    }
+
     // Get current user to check blocked users
     const currentUser = await User.findById(req.user.userId);
     if (currentUser.privacy.blockedUsers.length > 0) {
@@ -176,8 +182,8 @@ router.patch('/:id', authenticate, validate(updateRequestSchema), async (req, re
       return res.status(403).json({ error: 'Not authorized to update this request' });
     }
 
-    // Cannot update if already matched
-    if (request.status === 'matched' || request.status === 'completed') {
+    // Cannot update if already matched or in progress
+    if (request.status === 'matched' || request.status === 'in-progress' || request.status === 'completed') {
       return res.status(400).json({ error: 'Cannot update request in current status' });
     }
 
