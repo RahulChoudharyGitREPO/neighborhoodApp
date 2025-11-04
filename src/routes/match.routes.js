@@ -117,20 +117,33 @@ router.post('/', authenticate, validate(createMatchSchema), async (req, res, nex
       return res.status(400).json({ error: 'This request has already been assigned to a helper' });
     }
 
-    // Create match
-    const match = await Match.create({
-      requestId,
-      offerId: offerId || null,
-      requesterId: request.userId,
-      helperId: helperId,
-      status: 'pending',
-    });
+    let match;
+    let thread;
 
-    // Create thread for chat
-    const thread = await Thread.create({
-      matchId: match._id,
-      participants: [request.userId, helperId],
-    });
+    try {
+      // Create match
+      match = await Match.create({
+        requestId,
+        offerId: offerId || null,
+        requesterId: request.userId,
+        helperId: helperId,
+        status: 'pending',
+      });
+
+      // Create thread for chat
+      thread = await Thread.create({
+        matchId: match._id,
+        participants: [request.userId, helperId],
+      });
+    } catch (error) {
+      // Handle duplicate key error - another helper already matched
+      if (error.code === 11000) {
+        return res.status(400).json({
+          error: 'Another helper has already offered help for this request. Please try a different request.'
+        });
+      }
+      throw error; // Re-throw other errors
+    }
 
     // Don't update request status until requester accepts
     // request.status = 'matched';
@@ -220,7 +233,7 @@ router.get('/', authenticate, async (req, res, next) => {
 router.get('/unread-count', authenticate, async (req, res, next) => {
   try {
     const mongoose = require('mongoose');
-    const userId = mongoose.Types.ObjectId(req.user.userId);
+    const userId = new mongoose.Types.ObjectId(req.user.userId);
 
     // Get all threads where user is participant
     const threads = await Thread.find({
