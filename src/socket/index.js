@@ -230,20 +230,23 @@ function initializeSocket(httpServer) {
           return socket.emit('error', { message: 'Tracking not enabled' });
         }
 
-        // Update or create live location
-        let liveLocation = await LiveLocation.findOne({ matchId, helperId: socket.userId });
-
-        if (liveLocation) {
-          await liveLocation.updateLocation(lng, lat, speed, heading);
-        } else {
-          liveLocation = await LiveLocation.create({
-            matchId,
-            helperId: socket.userId,
-            coordinates: { lng, lat },
-            speed: speed || 0,
-            heading: heading || 0,
-          });
-        }
+        // Update or create live location using upsert to avoid race conditions
+        const liveLocation = await LiveLocation.findOneAndUpdate(
+          { matchId, helperId: socket.userId },
+          {
+            $set: {
+              coordinates: { lng, lat },
+              speed: speed || 0,
+              heading: heading || 0,
+              updatedAt: new Date(),
+            }
+          },
+          {
+            upsert: true,
+            new: true,
+            setDefaultsOnInsert: true
+          }
+        );
 
         // Broadcast to tracking room
         io.to(`track:${matchId}`).emit('location:update', {
