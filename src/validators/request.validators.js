@@ -29,7 +29,7 @@ const updateRequestSchema = Joi.object({
 const searchRequestsSchema = Joi.object({
   lng: Joi.number().min(-180).max(180).required(),
   lat: Joi.number().min(-90).max(90).required(),
-  radiusKm: Joi.number().min(0.5).max(5).default(2.5),
+  radiusKm: Joi.number().min(0.5).max(50000).default(2.5),
   category: Joi.string().valid('errands', 'moving', 'repairs', 'gardening', 'tech', 'tutoring', 'other'),
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(20),

@@ -2,7 +2,7 @@ const Joi = require('joi');
 
 const createOfferSchema = Joi.object({
   skills: Joi.array().items(Joi.string().trim().max(50)).min(1).max(20).required(),
-  radiusKm: Joi.number().min(0.5).max(5).required(),
+  radiusKm: Joi.number().min(0.5).max(50000).required(),
   home: Joi.object({
     lng: Joi.number().min(-180).max(180).required(),
     lat: Joi.number().min(-90).max(90).required(),
@@ -12,7 +12,7 @@ const createOfferSchema = Joi.object({
 
 const updateOfferSchema = Joi.object({
   skills: Joi.array().items(Joi.string().trim().max(50)).min(1).max(20),
-  radiusKm: Joi.number().min(0.5).max(5),
+  radiusKm: Joi.number().min(0.5).max(50000),
   home: Joi.object({
     lng: Joi.number().min(-180).max(180).required(),
     lat: Joi.number().min(-90).max(90).required(),
@@ -24,7 +24,7 @@ const updateOfferSchema = Joi.object({
 const searchOffersSchema = Joi.object({
   lng: Joi.number().min(-180).max(180).required(),
   lat: Joi.number().min(-90).max(90).required(),
-  radiusKm: Joi.number().min(0.5).max(5).default(2.5),
+  radiusKm: Joi.number().min(0.5).max(50000).default(2.5),
   skill: Joi.string().trim().max(50),
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(20),

@@ -28,7 +28,7 @@ const offerSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 0.5,
-    max: 5,
+    max: 50000,
   },
   home: {
     type: pointSchema,

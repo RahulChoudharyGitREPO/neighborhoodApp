@@ -39,7 +39,7 @@ module.exports = {
   geo: {
     default_radius_km: parseFloat(process.env.DEFAULT_RADIUS_KM) || 2.5,
     min_radius_km: parseFloat(process.env.MIN_RADIUS_KM) || 0.5,
-    max_radius_km: parseFloat(process.env.MAX_RADIUS_KM) || 5,
+    max_radius_km: parseFloat(process.env.MAX_RADIUS_KM) || 50000,
   },
 
   ws: {
