@@ -34,6 +34,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  address: {
+    type: String,
+    maxlength: 300,
+    default: '',
+  },
   skills: [{
     type: String,
     trim: true,

@@ -4,6 +4,8 @@ const config = require('../config/env');
 const updateProfileSchema = Joi.object({
   displayName: Joi.string().trim().min(2).max(100),
   bio: Joi.string().trim().max(500).allow(''),
+  phone: Joi.string().trim().max(20).allow(''),
+  address: Joi.string().trim().max(300).allow(''),
   skills: Joi.array().items(Joi.string().trim().max(50)).max(20),
   radiusKm: Joi.number()
     .min(config.geo.min_radius_km)

@@ -47,6 +47,7 @@ router.get('/', authenticate, async (req, res, next) => {
       displayName: user.displayName,
       bio: user.bio,
       avatarUrl: user.avatarUrl,
+      address: user.address,
       skills: user.skills,
       radiusKm: user.radiusKm,
       role: user.role,
@@ -77,6 +78,7 @@ router.patch('/profile', authenticate, validate(updateProfileSchema), async (req
 
     if (req.body.displayName) updates.displayName = req.body.displayName;
     if (req.body.bio !== undefined) updates.bio = req.body.bio;
+    if (req.body.address !== undefined) updates.address = req.body.address;
     if (req.body.skills) updates.skills = req.body.skills;
     if (req.body.radiusKm) updates.radiusKm = req.body.radiusKm;
     if (req.body.role) updates.role = req.body.role;
@@ -93,19 +95,35 @@ router.patch('/profile', authenticate, validate(updateProfileSchema), async (req
       { new: true, runValidators: true }
     );
 
+    // Update phone in UserContact if provided
+    let userContact;
+    if (req.body.phone !== undefined) {
+      userContact = await UserContact.findOneAndUpdate(
+        { userId: req.user.userId },
+        { $set: { phone: req.body.phone || null } },
+        { new: true }
+      );
+    } else {
+      userContact = await UserContact.findOne({ userId: req.user.userId });
+    }
+
     // Log action
-    await logAction(req.user.userId, 'user.profile.update', req, { fields: Object.keys(updates) });
+    const allFields = [...Object.keys(updates)];
+    if (req.body.phone !== undefined) allFields.push('phone');
+    await logAction(req.user.userId, 'user.profile.update', req, { fields: allFields });
 
     res.json({
       id: user._id,
       displayName: user.displayName,
       bio: user.bio,
+      address: user.address,
       skills: user.skills,
       radiusKm: user.radiusKm,
       home: user.home ? {
         lng: user.home.coordinates[0],
         lat: user.home.coordinates[1],
       } : null,
+      phone: userContact?.phone || null,
     });
   } catch (error) {
     next(error);
