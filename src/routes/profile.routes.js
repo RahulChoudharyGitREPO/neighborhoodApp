@@ -18,7 +18,21 @@ const {
   updatePhoneConfirmSchema,
   updatePrivacySchema,
 } = require('../validators/profile.validators');
+const multer = require('multer');
 const config = require('../config/env');
+
+// Configure multer for memory storage (max 5MB)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
+  },
+});
 
 // Configure Cloudinary
 if (config.cloudinary.cloud_name) {
@@ -124,6 +138,63 @@ router.patch('/profile', authenticate, validate(updateProfileSchema), async (req
         lat: user.home.coordinates[1],
       } : null,
       phone: userContact?.phone || null,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /me/avatar
+ * Direct avatar upload (multipart/form-data)
+ */
+router.post('/avatar', authenticate, upload.single('avatar'), async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    if (!config.cloudinary.cloud_name) {
+      return res.status(501).json({ error: 'Cloudinary not configured' });
+    }
+
+    // Upload to Cloudinary via stream
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'avatars',
+          public_id: `avatar_${req.user.userId}_${Date.now()}`,
+          transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }],
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      stream.end(req.file.buffer);
+    });
+
+    // Delete old avatar if exists
+    const user = await User.findById(req.user.userId);
+    if (user.avatarPublicId) {
+      try {
+        await cloudinary.uploader.destroy(user.avatarPublicId);
+      } catch (err) {
+        console.error('Failed to delete old avatar:', err);
+      }
+    }
+
+    // Update user
+    user.avatarUrl = result.secure_url;
+    user.avatarPublicId = result.public_id;
+    await user.save();
+
+    await logAction(req.user.userId, 'user.avatar.update', req);
+
+    res.json({
+      id: user._id,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
     });
   } catch (error) {
     next(error);
